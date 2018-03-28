@@ -100,8 +100,8 @@ def main(args):
   # Axes
   new_file.createDimension('i',ocn_ni)
   new_file.createDimension('j',ocn_nj)
-  new_file.createDimension('I',ocn_ni+1)
-  new_file.createDimension('J',ocn_nj+1)
+  new_file.createDimension('IQ',ocn_ni+1)
+  new_file.createDimension('JQ',ocn_nj+1)
   extra_dim = None
   if len(src_data.shape)==3:
     extra_dim = src_data.dimensions[0]
@@ -117,9 +117,9 @@ def main(args):
   j = new_file.createVariable('j', 'f4', ('j',))
   j.long_name = 'Grid position along second dimension'
   j.axis = 'Y'
-  I = new_file.createVariable('IQ', 'f4', ('I',))
+  I = new_file.createVariable('IQ', 'f4', ('IQ',))
   I.long_name = 'Grid position along first dimension'
-  J = new_file.createVariable('JQ', 'f4', ('J',))
+  J = new_file.createVariable('JQ', 'f4', ('JQ',))
   J.long_name = 'Grid position along second dimension'
   if extra_dim is not None:
     extra_dim = src_nc.variables[extra_dim]
@@ -140,11 +140,11 @@ def main(args):
   lat.long_name = 'Latitude of cell centers'
   lat.standard_name = 'latitude'
   lat.units = 'degrees_north'
-  lonq = new_file.createVariable('lon_crnr', 'f4', ('J','I',))
+  lonq = new_file.createVariable('lon_crnr', 'f4', ('JQ','IQ',))
   lonq.long_name = 'Longitude of mesh nodes'
   lonq.standard_name = 'longitude'
   lonq.units = 'degrees_east'
-  latq = new_file.createVariable('lat_crnr', 'f4', ('J','I',))
+  latq = new_file.createVariable('lat_crnr', 'f4', ('JQ','IQ',))
   latq.long_name = 'Latitude of mesh nodes'
   latq.standard_name = 'latitude'
   latq.units = 'degrees_north'

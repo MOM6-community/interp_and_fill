@@ -7,7 +7,7 @@ a given land/sea mask and fill in where needed.
 
 ```
 ./interp_and_fill.py -h
-./interp_and_fill.py ocean_hgrid.nc ocean_mask.nc source_data.nc new_file.nc
+./interp_and_fill.py ocean_hgrid.nc ocean_mask.nc source_data.nc variable_name new_file.nc
 ```
 
 ## Algorithm

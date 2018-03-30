@@ -30,6 +30,8 @@ def parseCommandLine():
       help="""Filename for data interpolated to the ocean model grid.""")
   parser.add_argument('-m','--mask_var', type=str, default='mask',
       help="""Name of mask variable in mask file.""")
+  parser.add_argument('--fms', action='store_true',
+      help="""Add non-standard attributes for FMS!""")
   parser.add_argument('-p','--progress', action='store_true',
       help="""Report progress.""")
   parser.add_argument('-q','--quiet', action='store_true',
@@ -113,10 +115,10 @@ def main(args):
   # 1d variables
   i = new_file.createVariable('i', 'f4', ('i',))
   i.long_name = 'Grid position along first dimension'
-  i.axis = 'X'
+  if args.fms: i.cartesian_axis = 'X'
   j = new_file.createVariable('j', 'f4', ('j',))
   j.long_name = 'Grid position along second dimension'
-  j.axis = 'Y'
+  if args.fms: j.cartesian_axis = 'Y'
   I = new_file.createVariable('IQ', 'f4', ('IQ',))
   I.long_name = 'Grid position along first dimension'
   J = new_file.createVariable('JQ', 'f4', ('JQ',))
@@ -127,9 +129,9 @@ def main(args):
     for a in src_nc.variables[extra_dim.name].ncattrs():
       t.setncattr(a, src_nc.variables[extra_dim.name].getncattr(a))
     if src_nc.dimensions[extra_dim.name].isunlimited():
-      t.axis = 'T'
-    else:
-      t.axis = 'Z'
+      if args.fms:
+        t.cartesian_axis = 'T'
+        t.modulo = ' '
 
   # 2d variables
   lon = new_file.createVariable('lon', 'f4', ('j','i',))
@@ -163,8 +165,10 @@ def main(args):
 
   # variable attributes
   for a in src_data.ncattrs():
-    #if a != '_FillValue':
-      new_var.setncattr(a, src_data.getncattr(a))
+    new_var.setncattr(a, src_data.getncattr(a))
+    if a == '_FillValue':
+      if args.fms:
+        new_var.missing_value = src_data.getncattr(a)
 
   # Write static data
   i[:] = numpy.arange(ocn_ni)+0.5

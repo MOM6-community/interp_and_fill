@@ -30,6 +30,8 @@ def parseCommandLine():
       help="""Filename for data interpolated to the ocean model grid.""")
   parser.add_argument('-m','--mask_var', type=str, default='mask',
       help="""Name of mask variable in mask file.""")
+  parser.add_argument('-c','--closest', action='store_true',
+      help="""Use closest neighbor when bilinear interpolation fails for missing data.""")
   parser.add_argument('--fms', action='store_true',
       help="""Add non-standard attributes for FMS!""")
   parser.add_argument('-p','--progress', action='store_true',
@@ -183,6 +185,9 @@ def main(args):
 
   if extra_dim is None:
     q_int = super_interp(src_lat, src_lon, src_data[:], spr_lat, spr_lon) * ocn_mask
+    if args.closest:
+      q_nrst = super_closest(src_lat, src_lon, src_data[:], spr_lat, spr_lon)
+      q[ (ocn_mask>0) & q.mask ] = q_nrst[ (ocn_mask>0) & q.mask ]
     data = fill_missing_data(q_int, ocn_mask)
     new_var[:] = data[:]
   else:
@@ -193,6 +198,10 @@ def main(args):
       q_int = super_interp(src_lat, src_lon, src_data[n], spr_lat, spr_lon)
       q_int = q_int.swapaxes(1,2).reshape((ocn_nj,ocn_ni,q_int.shape[3]*q_int.shape[-1])).mean(axis=-1)
       q = numpy.ma.array( q_int.filled(-1.e9), mask=(q_int.mask | (ocn_mask==0)) )
+      if args.closest:
+        q_nrst = super_closest(src_lat, src_lon, src_data[n], spr_lat, spr_lon)
+        q_nrst = q_nrst.swapaxes(1,2).reshape((ocn_nj,ocn_ni,q_nrst.shape[3]*q_nrst.shape[-1])).mean(axis=-1)
+        q[ (ocn_mask>0) & q.mask ] = q_nrst[ (ocn_mask>0) & q.mask ]
       data = fill_missing_data(q, ocn_mask)
       new_var[n] = data[:]
       t[n] = src_nc.variables[extra_dim.name][n]
@@ -243,6 +252,35 @@ def super_interp(src_lat, src_lon, data, spr_lat, spr_lon):
   w_n = ydist( src_lat[j0], spr_lat) / dy
   w_s = 1. - w_n
   return ( w_s*w_w * data[j0,i0] + w_n*w_e * data[j1,i1] ) + ( w_n*w_w * data[j1,i0] + w_s*w_e * data[j0,i1] )
+
+#def super_closest(src_lat, src_lon, data, spr_lat, spr_lon):
+#  nj, ni = data.shape
+#  src_x0 = int( ( src_lon[0] + src_lon[-1] )/2 + 0.5) - 180.
+#  j = numpy.maximum(0, numpy.floor( ( ( spr_lat + 90. ) / 180. ) * nj ).astype(int))
+#  i = numpy.mod( numpy.floor( ( ( spr_lon - src_x0 ) / 360. ) * ni ), ni ).astype(int)
+#  return data[j,i]
+
+def super_closest(src_lat, src_lon, data, spr_lat, spr_lon):
+  """Uses piecewise constant reconstruction to map src onto a grid twice as fine and then interpolate.
+     This avoids excessive extrapolation that occurs with closest neighbor near land."""
+  nj, ni = data.shape
+  nj, ni = 2*nj, 2*ni
+  data2 = numpy.ma.zeros((nj,ni))
+  data2[::2,::2] = data
+  data2[1::2,::2] = data
+  data2[::2,1::2] = data
+  data2[1::2,1::2] = data
+  src_lon2 = numpy.zeros( ni )
+  src_lon2[0] = src_lon[0] - ( src_lon[1] - src_lon[0] )/4
+  src_lon2[-1] = src_lon[-1] - ( src_lon[-2] - src_lon[-1] )/4
+  src_lon2[1:-2:2] = ( 3 * src_lon[:-1] + src_lon[1:] ) / 4
+  src_lon2[2:-1:2] = ( src_lon[:-1] + 3 * src_lon[1:] ) / 4
+  src_lat2 = numpy.zeros( nj )
+  src_lat2[0] = src_lat[0] - ( src_lat[1] - src_lat[0] )/4
+  src_lat2[-1] = src_lat[-1] - ( src_lat[-2] - src_lat[-1] )/4
+  src_lat2[1:-2:2] = ( 3 * src_lat[:-1] + src_lat[1:] ) / 4
+  src_lat2[2:-1:2] = ( src_lat[:-1] + 3 * src_lat[1:] ) / 4
+  return super_interp(src_lat2, src_lon2, data2, spr_lat, spr_lon)
 
 def fill_missing_data(idata, mask, verbose=False, maxiter=0, debug=False, stabilizer=1.e-14):
   """

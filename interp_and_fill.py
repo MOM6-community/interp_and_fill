@@ -197,7 +197,11 @@ def main(args):
         sys.stdout.flush()
       q_int = super_interp(src_lat, src_lon, src_data[n], spr_lat, spr_lon)
       q_int = q_int.swapaxes(1,2).reshape((ocn_nj,ocn_ni,q_int.shape[3]*q_int.shape[-1])).mean(axis=-1)
-      q = numpy.ma.array( q_int.filled(-1.e9), mask=(q_int.mask | (ocn_mask==0)) )
+      if type(q_int) is numpy.ndarray:
+        q = numpy.ma.array( q_int, mask=( (ocn_mask==0) ) )
+      elif type(q_int) is numpy.ma.core.MaskedArray:
+        q = numpy.ma.array( q_int.filled(-1.e9), mask=(q_int.mask | (ocn_mask==0)) )
+      else: raise Exception('Unknown type for variable q_int!')
       if args.closest:
         q_nrst = super_closest(src_lat, src_lon, src_data[n], spr_lat, spr_lon)
         q_nrst = q_nrst.swapaxes(1,2).reshape((ocn_nj,ocn_ni,q_nrst.shape[3]*q_nrst.shape[-1])).mean(axis=-1)

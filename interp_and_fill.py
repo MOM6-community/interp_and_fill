@@ -158,17 +158,22 @@ def main(args):
   area.units = 'm2'
   area.coordinates = 'lon lat'
   area.mesh_coordinates = 'lon_crnr lat_crnr'
-  if extra_dim is not None:
-    new_var = new_file.createVariable(args.variable, 'f4', (extra_dim.name, 'j','i',))
+  if '_FillValue' in src_data.ncattrs():
+    fill_value = src_data._FillValue
   else:
-    new_var = new_file.createVariable(args.variable, 'f4', ('j','i',))
+    fill_value = None
+  if extra_dim is not None:
+    new_var = new_file.createVariable(args.variable, 'f4', (extra_dim.name, 'j','i',), fill_value=fill_value)
+  else:
+    new_var = new_file.createVariable(args.variable, 'f4', ('j','i',), fill_value=fill_value)
   new_var.coordinates = 'lon lat'
   new_var.mesh_coordinates = 'lon_crnr lat_crnr'
 
   # variable attributes
   for a in src_data.ncattrs():
-    new_var.setncattr(a, src_data.getncattr(a))
-    if a == '_FillValue':
+    if a != '_FillValue':
+      new_var.setncattr(a, src_data.getncattr(a))
+    else:
       if args.fms:
         new_var.missing_value = src_data.getncattr(a)
 
